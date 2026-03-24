@@ -1,0 +1,125 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../core/api_config.dart';
+import '../models/producto.dart';
+
+class ProductoService {
+  final String token;
+
+  ProductoService(this.token);
+
+  Future<List<Producto>> getProductos() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/obtener/productos');
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'ngrok-skip-browser-warning': 'true',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonList = jsonDecode(response.body);
+      return jsonList.map((e) => Producto.fromJson(e)).toList();
+    } else {
+      throw Exception('Error al obtener productos');
+    }
+  }
+
+  Future<Producto> addProducto(Producto p) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/crear/producto');
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token', 
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode(p.toJson()),
+    );
+
+    if (response.statusCode == 201) {
+      return Producto.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Error al crear producto');
+    }
+  }
+
+  Future<void> updateProducto(int id, Producto p) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/actualizar/producto/$id');
+    final response = await http.put(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token', 
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode(p.toJson()),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Error al editar producto');
+    }
+  }
+
+  Future<void> updateStock(int id, int cantidad, String motivo, bool isEntrada) async {
+    final action = isEntrada ? 'entrada' : 'salida';
+    final url = Uri.parse('${ApiConfig.baseUrl}/$id/$action');
+    
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token', 
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode({'cantidad': cantidad, 'motivo': motivo}),
+    );
+
+    if (response.statusCode != 200) {
+      try {
+        final j = jsonDecode(response.body);
+        throw Exception(j['mensaje'] ?? 'Error desconocido');
+      } catch (e) {
+        throw Exception('Error al actualizar stock');
+      }
+    }
+  }
+
+  Future<void> deleteProducto(int id) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/eliminar/producto/$id');
+    final response = await http.delete(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'ngrok-skip-browser-warning': 'true',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      try {
+        final j = jsonDecode(response.body);
+        throw Exception(j['mensaje'] ?? 'Error desconocido');
+      } catch (e) {
+        throw Exception('Error crítico en el servidor');
+      }
+    }
+  }
+
+  Future<List<Producto>> getProductosBorrados() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/obtener/borrados');
+    final response = await http.get(url, headers: {'Authorization': 'Bearer $token', 'ngrok-skip-browser-warning': 'true'});
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonList = jsonDecode(response.body);
+      return jsonList.map((e) => Producto.fromJson(e)).toList();
+    } else {
+      throw Exception('Error al obtener papelera');
+    }
+  }
+
+  Future<bool> restaurarProducto(int id) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/restaurar/producto/$id');
+    final response = await http.put(url, headers: {'Authorization': 'Bearer $token', 'ngrok-skip-browser-warning': 'true'});
+    return response.statusCode == 200;
+  }
+}
