@@ -30,63 +30,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  void _mostrarDialogoStock(int productoId, bool esEntrada) {
+  void _mostrarDialogoStock(Producto p, bool esEntrada) {
     final objController = TextEditingController();
     final motivoController = TextEditingController(text: esEntrada ? 'Entrada manual' : 'Despacho');
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF203A43),
-        title: Row(
-          children: [
-            Icon(esEntrada ? LucideIcons.packagePlus : LucideIcons.packageMinus, color: esEntrada ? Colors.greenAccent : Colors.deepOrangeAccent),
-            const SizedBox(width: 8),
-            Text(esEntrada ? 'Entrada de Stock' : 'Salida de Stock', style: const TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: objController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Cantidad', labelStyle: TextStyle(color: Colors.white70)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final cantidadInput = int.tryParse(objController.text) ?? 0;
+          final vacio = objController.text.trim().isEmpty || cantidadInput <= 0;
+          final excedido = !esEntrada && (cantidadInput > p.cantidadEnStock);
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF203A43),
+            title: Row(
+              children: [
+                Icon(esEntrada ? LucideIcons.packagePlus : LucideIcons.packageMinus, color: esEntrada ? Colors.greenAccent : Colors.deepOrangeAccent),
+                const SizedBox(width: 8),
+                Text(esEntrada ? 'Entrada de Stock' : 'Salida de Stock', style: const TextStyle(color: Colors.white, fontSize: 18)),
+              ],
             ),
-            TextField(
-              controller: motivoController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Motivo (opcional)', labelStyle: TextStyle(color: Colors.white70)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: objController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (v) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Cantidad', 
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    errorText: excedido ? 'No hay productos suficientes (máx: ${p.cantidadEnStock})' : null,
+                    errorStyle: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)
+                  ),
+                ),
+                TextField(
+                  controller: motivoController,
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (v) => setState(() {}),
+                  decoration: const InputDecoration(labelText: 'Motivo (opcional)', labelStyle: TextStyle(color: Colors.white70)),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: esEntrada ? Colors.greenAccent : Colors.deepOrangeAccent, foregroundColor: Colors.black87),
-            onPressed: () async {
-              final cantidad = int.tryParse(objController.text) ?? 0;
-              final token = context.read<AuthProvider>().token!;
-              String? errorMsg;
-              if (esEntrada) {
-                errorMsg = await context.read<ProductoProvider>().darEntradaStock(token, productoId, cantidad, motivoController.text);
-              } else {
-                errorMsg = await context.read<ProductoProvider>().darSalidaStock(token, productoId, cantidad, motivoController.text);
-              }
-              if (mounted) {
-                Navigator.pop(ctx);
-                if (errorMsg == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Operación procesada con éxito', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg, style: const TextStyle(color: Colors.white)), backgroundColor: Colors.redAccent));
-                }
-                context.read<HistorialProvider>().loadHistorial(token);
-              }
-            },
-            child: const Text('Confirmar'),
-          )
-        ],
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: esEntrada ? Colors.greenAccent : Colors.deepOrangeAccent, foregroundColor: Colors.black87),
+                onPressed: (vacio || excedido) ? null : () async {
+                  final cantidad = int.tryParse(objController.text) ?? 0;
+                  final token = context.read<AuthProvider>().token!;
+                  String? errorMsg;
+                  if (esEntrada) {
+                    errorMsg = await context.read<ProductoProvider>().darEntradaStock(token, p.id, cantidad, motivoController.text);
+                  } else {
+                    errorMsg = await context.read<ProductoProvider>().darSalidaStock(token, p.id, cantidad, motivoController.text);
+                  }
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    if (errorMsg == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Operación procesada con éxito', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg, style: const TextStyle(color: Colors.white)), backgroundColor: Colors.redAccent));
+                    }
+                    context.read<HistorialProvider>().loadHistorial(token);
+                  }
+                },
+                child: const Text('Confirmar'),
+              )
+            ],
+          );
+        }
       ),
     );
   }
@@ -100,59 +115,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF203A43),
-        title: Row(
-          children: [
-            Icon(p == null ? LucideIcons.plusSquare : LucideIcons.edit, color: Colors.cyanAccent),
-            const SizedBox(width: 8),
-            Text(p == null ? 'Nuevo Producto' : 'Editar Producto', style: const TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nombreController, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Nombre', labelStyle: TextStyle(color: Colors.white70))),
-              TextField(controller: descController, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Descripción', labelStyle: TextStyle(color: Colors.white70))),
-              TextField(controller: pVentaController, keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Precio Venta (\$)', labelStyle: TextStyle(color: Colors.white70) )),
-              TextField(controller: pCompraController, keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Precio Compra (\$)', labelStyle: TextStyle(color: Colors.white70) )),
-              if (p == null)
-                 TextField(controller: stockController, keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Stock Inicial', labelStyle: TextStyle(color: Colors.white70) )),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final nom = nombreController.text.trim();
+          final desc = descController.text.trim();
+          final vnt = double.tryParse(pVentaController.text) ?? -1;
+          final cmp = double.tryParse(pCompraController.text) ?? -1;
+          final stk = int.tryParse(stockController.text) ?? -1;
+
+          bool formInvalido = nom.isEmpty || desc.isEmpty || vnt <= 0 || cmp <= 0 || (p == null && stk < 0);
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF203A43),
+            title: Row(
+              children: [
+                Icon(p == null ? LucideIcons.plusSquare : LucideIcons.edit, color: Colors.cyanAccent),
+                const SizedBox(width: 8),
+                Text(p == null ? 'Nuevo Producto' : 'Editar Producto', style: const TextStyle(color: Colors.white, fontSize: 18)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(controller: nombreController, onChanged: (v) => setState((){}), style: const TextStyle(color: Colors.white), decoration: InputDecoration(labelText: 'Nombre', labelStyle: const TextStyle(color: Colors.white70), errorText: nom.isEmpty ? 'Requerido' : null)),
+                  TextField(controller: descController, onChanged: (v) => setState((){}), style: const TextStyle(color: Colors.white), decoration: InputDecoration(labelText: 'Descripción', labelStyle: const TextStyle(color: Colors.white70), errorText: desc.isEmpty ? 'Requerido' : null)),
+                  TextField(controller: pVentaController, onChanged: (v) => setState((){}), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(color: Colors.white), decoration: InputDecoration(labelText: 'Precio Venta (\$)', labelStyle: const TextStyle(color: Colors.white70), errorText: vnt <= 0 ? 'Debe ser > 0' : null)),
+                  TextField(controller: pCompraController, onChanged: (v) => setState((){}), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(color: Colors.white), decoration: InputDecoration(labelText: 'Precio Compra (\$)', labelStyle: const TextStyle(color: Colors.white70), errorText: cmp <= 0 ? 'Debe ser > 0' : null)),
+                  if (p == null)
+                     TextField(controller: stockController, onChanged: (v) => setState((){}), keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white), decoration: InputDecoration(labelText: 'Stock Inicial', labelStyle: const TextStyle(color: Colors.white70), errorText: stk < 0 ? 'Invalido' : null)),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black87),
+                onPressed: formInvalido ? null : () async {
+                  final token = context.read<AuthProvider>().token!;
+                  final nuevo = Producto(
+                    id: p?.id ?? 0,
+                    nombre: nombreController.text,
+                    descripcion: descController.text,
+                    precioUnitarioVenta: double.tryParse(pVentaController.text) ?? 0,
+                    precioUnitarioCompra: double.tryParse(pCompraController.text) ?? 0,
+                    cantidadEnStock: p?.cantidadEnStock ?? (int.tryParse(stockController.text) ?? 0),
+                  );
+
+                  bool success;
+                  if (p == null) {
+                    success = await context.read<ProductoProvider>().addProducto(token, nuevo);
+                  } else {
+                    success = await context.read<ProductoProvider>().editProducto(token, p.id, nuevo);
+                  }
+
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success ? 'Guardado exitosamente' : 'Error al guardar')));
+                    context.read<HistorialProvider>().loadHistorial(token);
+                  }
+                },
+                child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+              )
             ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black87),
-            onPressed: () async {
-              final token = context.read<AuthProvider>().token!;
-              final nuevo = Producto(
-                id: p?.id ?? 0,
-                nombre: nombreController.text,
-                descripcion: descController.text,
-                precioUnitarioVenta: double.tryParse(pVentaController.text) ?? 0,
-                precioUnitarioCompra: double.tryParse(pCompraController.text) ?? 0,
-                cantidadEnStock: p?.cantidadEnStock ?? (int.tryParse(stockController.text) ?? 0),
-              );
-
-              bool success;
-              if (p == null) {
-                success = await context.read<ProductoProvider>().addProducto(token, nuevo);
-              } else {
-                success = await context.read<ProductoProvider>().editProducto(token, p.id, nuevo);
-              }
-
-              if (mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success ? 'Guardado exitosamente' : 'Error al guardar')));
-                context.read<HistorialProvider>().loadHistorial(token);
-              }
-            },
-            child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
-          )
-        ],
+          );
+        }
       ),
     );
   }
@@ -198,11 +225,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         content: SizedBox(
-          width: 400,
-          height: 400,
+          width: double.maxFinite,
           child: criticos.isEmpty 
-            ? const Center(child: Text('¡Todo el inventario está sano!', style: TextStyle(color: Colors.white70)))
+            ? const Padding(padding: EdgeInsets.all(20), child: Text('¡Todo el inventario está sano!', style: TextStyle(color: Colors.white70), textAlign: TextAlign.center))
             : ListView.builder(
+                shrinkWrap: true,
+                physics: const ClampingScrollPhysics(),
                 itemCount: criticos.length,
                 itemBuilder: (c, i) {
                   final p = criticos[i];
@@ -212,7 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     subtitle: Text('Stock actual: ${p.cantidadEnStock}', style: const TextStyle(color: Colors.amberAccent)),
                     trailing: IconButton(icon: const Icon(LucideIcons.plusCircle, color: Colors.cyanAccent), onPressed: () {
                       Navigator.pop(ctx);
-                      _mostrarDialogoStock(p.id, true);
+                      _mostrarDialogoStock(p, true);
                     }),
                   );
                 }
@@ -383,8 +411,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     if (isAdmin)
                       Tooltip(message: 'Editar', child: IconButton(icon: const Icon(LucideIcons.edit3, color: Colors.white70, size: 22), onPressed: () => _mostrarFormularioProducto(p))),
-                    Tooltip(message: 'Salida Stock', child: IconButton(icon: const Icon(LucideIcons.minusCircle, color: Colors.deepOrangeAccent, size: 24), onPressed: () => _mostrarDialogoStock(p.id, false))),
-                    Tooltip(message: 'Entrada Stock', child: IconButton(icon: const Icon(LucideIcons.plusCircle, color: Colors.cyanAccent, size: 24), onPressed: () => _mostrarDialogoStock(p.id, true))),
+                    Tooltip(message: 'Salida Stock', child: IconButton(icon: const Icon(LucideIcons.minusCircle, color: Colors.deepOrangeAccent, size: 24), onPressed: () => _mostrarDialogoStock(p, false))),
+                    Tooltip(message: 'Entrada Stock', child: IconButton(icon: const Icon(LucideIcons.plusCircle, color: Colors.cyanAccent, size: 24), onPressed: () => _mostrarDialogoStock(p, true))),
                     if (isAdmin)
                       Tooltip(message: 'Eliminar', child: IconButton(icon: const Icon(LucideIcons.trash2, color: Colors.redAccent, size: 22), onPressed: () => _eliminarProducto(p.id))),
                   ],
