@@ -10,7 +10,7 @@ El proyecto está estratificado por componentes específicos de responsabilidad 
 ├── core/                # Variables y Constantes universales (api_config)
 ├── models/              # Moldes de Clases (Traducción JSON a Dart)
 ├── providers/           # Gestores de Estado Global interconectados al UI
-├── services/            # Clientes HTTP (Conectividad directa con Node.js)
+├── services/            # Clientes HTTP (Conectividad directa con Spring Boot)
 ├── ui/screens/          # Planos Visuales interactivos (Componentes UI)
 └── main.dart            # Inyector de dependencias multihilo y tema raíz.
 ```
@@ -51,13 +51,24 @@ El componente más inmersivo de la aplicación. Integra tecnología **Mobile-Fir
 Tiene una estructura de "Cajón Oculto" (`Drawer`) que aloja un menú lateral. Se particiona matemáticamente en 3 vistas controladas por una variable de estado local (`_indiceActual`):
 
 #### Vista 0: "Resumen General"
-- Itera asíncronamente sobre todas las listas de MongoDB para calcular y sumar instantáneamente valores económicos como si fuera un modelo en Excel ($12,800.00 dólares en activo material).
-- Se contrae verticalmente en el smartphone, pero horizontalmente como "Dash" en Web/Edge.
+- Calcula en tiempo real el valor global del inventario, unidades físicas y catálogo total.
+- **Stock Crítico (Nueva):** Integra una alerta inteligente que detecta productos con stock ≤ 3. Al hacer clic, abre una tarjeta compacta con acceso directo a reabastecimiento.
 
-#### Vista 1: "Inventario Detallado" (El CRUD)
-- Una pasarela de listas optimizada consumiendo `ListView.builder` para no saturar memoria RAM si tienes 5,000 productos.
-- Lógica de Roles oculta: Solo renderiza los botones de "Edición" y "Eliminación absoluta" verificando que `usuario?.rol == 'ADMIN'`.
+#### Vista 1: "Inventario Detallado" (El CRUD Premium)
+- **Grilla Responsiva:** Utiliza `LayoutBuilder` para alternar entre 1 y 4 columnas según el dispositivo.
+- **Tarjetas Interactivas:** Implementación de `_ProductoItemCard` con efectos de `Scale`, `Elevation` y `Glow` dinámico al pasar el mouse (especialmente impactante en Web/Desktop).
+- **Filtros por Chip:** Permite segmentar instantáneamente entre productos `Inventariables`, `No Inventariables` (servicios) y `Todos`.
+- **Lógica de Seguridad:** Solo permite la edición/eliminación a usuarios con rol `ADMIN`.
 
 #### Vista 2: "Historial y Auditoría"
-- La terminal de logs gráfica. Utiliza una banda de elementos de estado visual `FilterChip` que interceptan el listado bruto y purgan visualmente acciones que no empaten (Ej: Ocultar los de 'CREACION' y mostrar solo 'ELIMINACION').
-- Recurre al paquete `lucide_icons` asignando constantes numéricas Hexadecimales (Colors) basado en condicionales `switch (acción)`.
+- La bitácora visual del sistema. Mapea cada acción técnica a un icono y color específico (ej. Verde para creación, Rojo para eliminación).
+
+#### Vista 3: "Papelera de Reciclaje"
+- Permite la gestión de productos eliminados mediante "Soft Delete". Incluye funciones de restauración rápida que devuelven el producto al inventario activo con un solo toque.
+
+---
+
+## 6. Conectividad y Red
+- **Ngrok Support:** Preparada para funcionar en dispositivos móviles mediante túneles seguros.
+- **Browser Warning Bypass:** Envía automáticamente el header `ngrok-skip-browser-warning` para evitar pantallas de interrupción.
+- **IP Proxy Handling:** El frontend está optimizado para trabajar con el backend incluso cuando las peticiones pasan por balanceadores o túneles.

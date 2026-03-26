@@ -297,38 +297,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     )
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: pCompraController,
-                          onChanged: (v) => setState((){}),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          style: TextStyle(color: _textColor),
-                          decoration: InputDecoration(
-                            labelText: 'Costo (\$)',
-                            prefixIcon: const Icon(LucideIcons.arrowDownCircle, color: Colors.blueAccent, size: 18),
-                            filled: true, fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                          )
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: pVentaController,
-                          onChanged: (v) => setState((){}),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          style: TextStyle(color: _textColor),
-                          decoration: InputDecoration(
-                            labelText: 'Venta (\$)',
-                            prefixIcon: const Icon(LucideIcons.arrowUpCircle, color: Colors.green, size: 18),
-                            filled: true, fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                          )
-                        ),
-                      ),
-                    ],
+                  Builder(
+                    builder: (context) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final isMobile = screenWidth < 500;
+                      if (isMobile) {
+                        return Column(
+                          children: [
+                            _buildPrecioField(pCompraController, 'Costo (\$)', Colors.blueAccent, LucideIcons.arrowDownCircle, setState),
+                            const SizedBox(height: 16),
+                            _buildPrecioField(pVentaController, 'Venta (\$)', Colors.green, LucideIcons.arrowUpCircle, setState),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: _buildPrecioField(pCompraController, 'Costo (\$)', Colors.blueAccent, LucideIcons.arrowDownCircle, setState)),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildPrecioField(pVentaController, 'Venta (\$)', Colors.green, LucideIcons.arrowUpCircle, setState)),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   if (p == null)
@@ -354,16 +343,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       border: Border.all(color: (esInventariado ? _accentColor : Colors.orange).withOpacity(0.3))
                     ),
                     child: SwitchListTile(
-                      title: Text('Producto Inventariado', style: TextStyle(color: _textColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      title: Text('Producto Inventariado', style: TextStyle(color: _textColor, fontWeight: FontWeight.bold, fontSize: 13)),
                       subtitle: Text(
                         esInventariado 
                           ? 'Requiere stock 0 para ser eliminado.' 
                           : 'Se puede eliminar con stock cargado.',
-                        style: TextStyle(color: _subTextColor, fontSize: 12)
+                        style: TextStyle(color: _subTextColor, fontSize: 11)
                       ),
                       value: esInventariado,
                       activeColor: _accentColor,
-                      secondary: Icon(esInventariado ? LucideIcons.shieldCheck : LucideIcons.shieldAlert, color: esInventariado ? _accentColor : Colors.orange),
+                      secondary: Icon(esInventariado ? LucideIcons.shieldCheck : LucideIcons.shieldAlert, color: esInventariado ? _accentColor : Colors.orange, size: 20),
                       onChanged: (val) => setState(() => esInventariado = val),
                     ),
                   ),
@@ -372,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Descargar', style: TextStyle(color: _subTextColor))),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancelar', style: TextStyle(color: _subTextColor))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _accentColor,
@@ -418,6 +408,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           );
         }
+      ),
+    );
+  }
+
+  Widget _buildPrecioField(TextEditingController controller, String label, Color color, IconData icon, StateSetter setState) {
+    return TextField(
+      controller: controller,
+      onChanged: (v) => setState((){}),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: TextStyle(color: _textColor, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: _subTextColor, fontSize: 13),
+        prefixIcon: Icon(icon, color: color, size: 18),
+        filled: true,
+        fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }
@@ -530,43 +538,121 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _mostrarStockCritico(List<Producto> criticos) {
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _dialogBg,
-        title: Row(
-          children: [
-            const Icon(LucideIcons.alertOctagon, color: Colors.redAccent),
-            const SizedBox(width: 8),
-            Text('Alerta de Stock Crítico', style: TextStyle(color: _textColor)),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: criticos.isEmpty
-            ? Padding(padding: const EdgeInsets.all(20), child: Text('¡Todo el inventario está sano!', style: TextStyle(color: _subTextColor), textAlign: TextAlign.center))
-            : ListView.builder(
-                shrinkWrap: true,
-                physics: const ClampingScrollPhysics(),
-                itemCount: criticos.length,
-                itemBuilder: (c, i) {
-                  final p = criticos[i];
-                  return ListTile(
-                    leading: const Icon(LucideIcons.alertTriangle, color: Colors.orangeAccent),
-                    title: Text(p.nombre, style: TextStyle(color: _textColor, fontWeight: FontWeight.bold)),
-                    subtitle: Text('Stock actual: ${p.cantidadEnStock}', style: const TextStyle(color: Colors.amberAccent)),
-                    trailing: IconButton(icon: Icon(LucideIcons.plusCircle, color: _accentColor), onPressed: () {
-                      Navigator.pop(ctx);
-                      _mostrarDialogoStock(p, true);
-                    }),
-                  );
-                }
-            )
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cerrar', style: TextStyle(color: _subTextColor)))
-        ],
-      )
+      barrierDismissible: true,
+      barrierLabel: '',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (ctx, anim1, anim2) => const SizedBox(),
+      transitionBuilder: (ctx, anim1, anim2, child) {
+        return Transform.scale(
+          scale: anim1.value,
+          child: Opacity(
+            opacity: anim1.value,
+            child: AlertDialog(
+              backgroundColor: Colors.transparent,
+              contentPadding: EdgeInsets.zero,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+              content: Container(
+                width: 400,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))
+                  ],
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 1.5)
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(LucideIcons.alertOctagon, color: Colors.redAccent, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Stock Crítico',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                          ),
+                        ),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(LucideIcons.x, color: _subTextColor, size: 18),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                      child: criticos.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Text('Todo el inventario está sano', style: TextStyle(color: _subTextColor), textAlign: TextAlign.center),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: criticos.length,
+                            itemBuilder: (c, i) {
+                              final p = criticos[i];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _isDark ? Colors.white.withOpacity(0.03) : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.redAccent.withOpacity(0.1))
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(p.nombre, style: TextStyle(color: _textColor, fontWeight: FontWeight.w600, fontSize: 13)),
+                                          Text('Disponible: ${p.cantidadEnStock}', style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        _mostrarDialogoStock(p, true);
+                                      },
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(color: _accentColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                        child: Icon(LucideIcons.plusCircle, color: _accentColor, size: 16),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${criticos.length} productos requieren atención inmediata',
+                      style: TextStyle(color: _subTextColor, fontSize: 11, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -776,9 +862,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   key: ValueKey('grid_$_filtroProducto'),
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
-                    int crossAxisCount = width > 1200 ? 3 : (width > 700 ? 2 : 1);
-                    double childAspectRatio = width > 1200 ? 1.4 : (width > 700 ? 1.3 : 1.8);
-                    if (width < 450) childAspectRatio = 1.35;
+                    int crossAxisCount = width > 1200 ? 4 : (width > 800 ? 3 : (width > 500 ? 2 : 1));
+                    double childAspectRatio = width > 1200 ? 1.5 : (width > 800 ? 1.4 : (width > 500 ? 1.8 : 1.6));
+                    if (width < 450) childAspectRatio = 1.45;
 
                     return GridView.builder(
                       physics: const BouncingScrollPhysics(),
@@ -1393,7 +1479,7 @@ class _ProductoItemCardState extends State<_ProductoItemCard> {
               onTap: widget.onEdit,
               borderRadius: BorderRadius.circular(24),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(12.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1401,9 +1487,9 @@ class _ProductoItemCardState extends State<_ProductoItemCard> {
                     Row(
                       children: [
                         Container(
-                          width: 48, height: 48,
+                          width: 40, height: 40,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -1415,28 +1501,28 @@ class _ProductoItemCardState extends State<_ProductoItemCard> {
                           child: Center(
                             child: Text(
                               p.cantidadEnStock.toString(), 
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)
                             )
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 p.nombre, 
-                                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 16), 
+                                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 14), 
                                 maxLines: 1, 
                                 overflow: TextOverflow.ellipsis
                               ),
                               Row(
                                 children: [
-                                  Icon(LucideIcons.tag, size: 12, color: accentColor),
+                                  Icon(LucideIcons.tag, size: 10, color: accentColor),
                                   const SizedBox(width: 4),
                                   Text(
                                     '\$${p.precioUnitarioVenta.toStringAsFixed(2)}', 
-                                    style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 12)
+                                    style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 11)
                                   ),
                                   const SizedBox(width: 8),
                                   _buildBadge(
@@ -1451,16 +1537,16 @@ class _ProductoItemCardState extends State<_ProductoItemCard> {
                       ],
                     ),
                     if (p.descripcion.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Text(
                         p.descripcion, 
-                        style: TextStyle(color: subTextColor, height: 1.2, fontSize: 12), 
+                        style: TextStyle(color: subTextColor, height: 1.1, fontSize: 11), 
                         maxLines: 2, 
                         overflow: TextOverflow.ellipsis
                       ),
                     ],
                     const Spacer(),
-                    Divider(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05), height: 24),
+                    Divider(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05), height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [

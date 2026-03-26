@@ -57,7 +57,7 @@ public class IpRateLimiterFilter implements WebFilter {
             }
             if (!v.isPermanentBlock()) {
                 v.count++;
-                if (v.count >= 200) { // Umbral de bloqueo permanente relajado
+                if (v.count >= 100) { // Umbral de bloqueo permanente relajado
                     v.permanentBlock = true;
                 }
             }
@@ -69,7 +69,7 @@ public class IpRateLimiterFilter implements WebFilter {
             return exchange.getResponse().setComplete();
         }
 
-        if (record.count > 30) { // Límite aumentado de 10 a 30 para desarrollo
+        if (record.count > 10) { // Límite aumentado de 10 a 30 para desarrollo
             exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
             return exchange.getResponse().setComplete();
         }

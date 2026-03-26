@@ -80,6 +80,7 @@
 | precioUnitarioVenta | DOUBLE | NOT NULL |
 | precioUnitarioCompra | DOUBLE | NOT NULL |
 | cantidadEnStock | INT | NOT NULL, DEFAULT 0 |
+| inventariado | BOOLEAN | NOT NULL, DEFAULT TRUE |
 | createdAt | DATETIME | NOT NULL |
 | updatedAt | DATETIME | — |
 | deletedAt | DATETIME | NULL (soft delete) |
@@ -162,8 +163,9 @@
 ### Rate Limiter por IP (`IpRateLimiterFilter`)
 - **Aplica a:** Peticiones SIN token Bearer (usuarios no autenticados)
 - **Bypass:** Usuarios logueados con token válido pasan libremente
-- **Bloqueo temporal:** > 10 peticiones en 60s → `429 Too Many Requests`
-- **Bloqueo permanente:** ≥ 100 peticiones acumuladas → `403 Forbidden`
+- **Bloqueo temporal:** > 30 peticiones en 60s → `429 Too Many Requests`
+- **Bloqueo permanente:** ≥ 200 peticiones acumuladas → `403 Forbidden`
+- **Detección de IP Real:** Soporte para el header `X-Forwarded-For` (crucial para usar Ngrok o proxies).
 - **Almacenamiento:** `ConcurrentHashMap` en memoria
 
 ### Circuit Breaker (Resilience4j)
@@ -342,6 +344,12 @@ Atacante (navegador directo, sin login)
 | Texto secundario | `Colors.white70` | `#5A7080` |
 | Acento (sage) | `#8ECBA8` | `#4A8C6E` |
 | Drawer | `#132030` | `Colors.white` |
+
+### 💎 UX Premium y Micro-interacciones
+- **Hover Shine & Lift:** Tarjetas con elevación dinámica, escala de 1.02x y brillo perimetral (Glow) al pasar el mouse.
+- **Grilla Responsiva:** Cuadrícula de 1-4 columnas según el ancho del dispositivo.
+- **Alertas Animadas:** Diálogos personalizados con `showGeneralDialog` para transiciones de escala y opacidad.
+- **Gestión Compacta:** Alertas de stock crítico con acceso directo a reabastecimiento.
 
 ---
 
