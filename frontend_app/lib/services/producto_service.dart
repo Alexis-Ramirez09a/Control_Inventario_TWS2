@@ -3,6 +3,15 @@ import 'package:http/http.dart' as http;
 import '../core/api_config.dart';
 import '../models/producto.dart';
 
+/// Servicio HTTP de Productos
+///
+/// @author Alexis Ramírez
+/// @date 2026-03-25
+/// @description Capa de servicio que realiza las peticiones HTTP al backend Spring Boot.
+///              Centraliza todas las llamadas REST para productos: GET, POST, PUT, DELETE.
+///              Incluye operaciones de movimiento de stock (entrada/salida), soft delete
+///              (papelera de reciclaje) y restauración. Cada petición incluye el header
+///              'Authorization: Bearer <token>' y 'ngrok-skip-browser-warning'.
 class ProductoService {
   final String token;
 
@@ -97,12 +106,12 @@ class ProductoService {
     );
 
     if (response.statusCode != 200) {
+      String msg = 'No se pudo completar la operación';
       try {
         final j = jsonDecode(response.body);
-        throw Exception(j['mensaje'] ?? 'Error desconocido');
-      } catch (e) {
-        throw Exception('Error crítico en el servidor');
-      }
+        msg = j['mensaje'] ?? j['message'] ?? msg;
+      } catch (_) {}
+      throw Exception(msg);
     }
   }
 

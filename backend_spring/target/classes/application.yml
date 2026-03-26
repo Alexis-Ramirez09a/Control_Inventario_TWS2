@@ -1,0 +1,31 @@
+server:
+  port: 3000 # Puerto nativo para reconectar a Ngrok sin alertar a Flutter
+
+spring:
+  application:
+    name: tws2-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/control_inventario?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+    username: root
+    password: "Alexis0991" 
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+jwt:
+  secret: inventariotokensecretkeytws2superseguraprotegidacon512bits1234567890123456789012345678901234567890 
+  expiration: 86400000 
+
+resilience4j.circuitbreaker:
+  instances:
+    facturasService:
+      slidingWindowSize: 3
+      failureRateThreshold: 50
+      waitDurationInOpenState: 15s
+      permittedNumberOfCallsInHalfOpenState: 2 

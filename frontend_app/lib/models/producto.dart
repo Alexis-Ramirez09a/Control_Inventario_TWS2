@@ -5,6 +5,7 @@ class Producto {
   final int cantidadEnStock;
   final double precioUnitarioCompra;
   final double precioUnitarioVenta;
+  final bool inventariado;
 
   Producto({
     required this.id,
@@ -13,6 +14,7 @@ class Producto {
     required this.cantidadEnStock,
     required this.precioUnitarioCompra,
     required this.precioUnitarioVenta,
+    this.inventariado = true,
   });
 
   factory Producto.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class Producto {
       cantidadEnStock: json['cantidadEnStock'] ?? 0,
       precioUnitarioCompra: double.parse(json['precioUnitarioCompra']?.toString() ?? '0'),
       precioUnitarioVenta: double.parse(json['precioUnitarioVenta']?.toString() ?? '0'),
+      inventariado: json['inventariado'] ?? true,
     );
   }
 
@@ -33,6 +36,7 @@ class Producto {
       'precioUnitarioCompra': precioUnitarioCompra,
       'precioUnitarioVenta': precioUnitarioVenta,
       'cantidadEnStock': cantidadEnStock,
+      'inventariado': inventariado,
     };
   }
 }

@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/producto_provider.dart';
 import 'providers/historial_provider.dart';
+import 'providers/factura_provider.dart';
+import 'providers/theme_provider.dart';
+import 'core/app_theme.dart';
 import 'ui/screens/login_screen.dart';
 
 void main() {
@@ -12,6 +15,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProductoProvider()),
         ChangeNotifierProvider(create: (_) => HistorialProvider()),
+        ChangeNotifierProvider(create: (_) => FacturaProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const InventoryApp(),
     ),
@@ -23,14 +28,13 @@ class InventoryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp(
       title: 'Control Inventario App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.cyanAccent, brightness: Brightness.dark),
-        scaffoldBackgroundColor: const Color(0xFF0F2027),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
       home: const LoginScreen(),
     );
   }
