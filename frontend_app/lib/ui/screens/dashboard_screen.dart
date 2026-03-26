@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../models/producto.dart';
@@ -148,6 +149,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           prefixIcon: Icon(LucideIcons.hash, color: _accentColor),
                           errorText: excedido ? 'Stock insuficiente (máx: ${p.cantidadEnStock})' : null,
                         ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                       ),
                       const SizedBox(height: 16),
                       TextField(
@@ -280,7 +284,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       filled: true,
                       fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                    )
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]')),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -333,7 +340,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           prefixIcon: Icon(LucideIcons.boxes, color: _subTextColor),
                           filled: true, fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                        )
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                       ),
                     ),
                   Container(
@@ -427,6 +437,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+      ],
     );
   }
 

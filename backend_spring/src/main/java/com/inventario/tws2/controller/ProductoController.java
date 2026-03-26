@@ -4,6 +4,7 @@ import com.inventario.tws2.dto.StockMovimientoRequest;
 import com.inventario.tws2.model.Producto;
 import com.inventario.tws2.model.Usuario;
 import com.inventario.tws2.service.ProductoService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,7 +37,7 @@ public class ProductoController {
     }
 
     @PostMapping("/crear/producto")
-    public Mono<ResponseEntity<?>> crearProducto(@RequestBody Producto producto, Authentication authentication) {
+    public Mono<ResponseEntity<?>> crearProducto(@Valid @RequestBody Producto producto, Authentication authentication) {
         return Mono.fromCallable(() -> productoService.crearProducto(producto, getAuthId(authentication)))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(p -> ResponseEntity.status(HttpStatus.CREATED).body(p));
@@ -50,7 +51,7 @@ public class ProductoController {
     }
 
     @PutMapping("/actualizar/producto/{id}")
-    public Mono<ResponseEntity<?>> actualizarProducto(@PathVariable Long id, @RequestBody Producto producto, Authentication authentication) {
+    public Mono<ResponseEntity<?>> actualizarProducto(@PathVariable Long id, @Valid @RequestBody Producto producto, Authentication authentication) {
         return Mono.fromCallable(() -> productoService.actualizarProducto(id, producto, getAuthId(authentication)))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(p -> ResponseEntity.ok().body((Object) p));
@@ -64,14 +65,14 @@ public class ProductoController {
     }
 
     @PostMapping("/{id}/entrada")
-    public Mono<ResponseEntity<?>> agregarStock(@PathVariable Long id, @RequestBody StockMovimientoRequest req, Authentication authentication) {
+    public Mono<ResponseEntity<?>> agregarStock(@PathVariable Long id, @Valid @RequestBody StockMovimientoRequest req, Authentication authentication) {
         return Mono.fromCallable(() -> productoService.agregarStock(id, req, getAuthId(authentication)))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(p -> ResponseEntity.ok().body((Object) Map.of("mensaje", "Stock agregado correctamente", "producto", p)));
     }
 
     @PostMapping("/{id}/salida")
-    public Mono<ResponseEntity<?>> despacharStock(@PathVariable Long id, @RequestBody StockMovimientoRequest req, Authentication authentication) {
+    public Mono<ResponseEntity<?>> despacharStock(@PathVariable Long id, @Valid @RequestBody StockMovimientoRequest req, Authentication authentication) {
         return Mono.fromCallable(() -> productoService.despacharStock(id, req, getAuthId(authentication)))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(p -> ResponseEntity.ok().body((Object) Map.of("mensaje", "Stock despachado correctamente", "producto", p)));

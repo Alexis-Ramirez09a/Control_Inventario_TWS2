@@ -1,6 +1,7 @@
 package com.inventario.tws2.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -21,18 +22,25 @@ public class Producto {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "El nombre del producto es obligatorio")
+    @Size(min = 3, max = 150, message = "El nombre debe tener entre 3 y 150 caracteres")
     @Column(nullable = false)
     private String nombre;
 
     @Column(columnDefinition = "TEXT")
     private String descripcion;
 
+    @NotNull(message = "El precio de venta es obligatorio")
+    @Positive(message = "El precio de venta debe ser mayor a 0")
     @Column(name = "precioUnitarioVenta", nullable = false)
     private Double precioUnitarioVenta;
 
+    @NotNull(message = "El precio de compra es obligatorio")
+    @Positive(message = "El precio de compra debe ser mayor a 0")
     @Column(name = "precioUnitarioCompra", nullable = false)
     private Double precioUnitarioCompra;
 
+    @Min(value = 0, message = "El stock no puede ser negativo")
     @Column(name = "cantidadEnStock", nullable = false)
     private Integer cantidadEnStock = 0;
 
