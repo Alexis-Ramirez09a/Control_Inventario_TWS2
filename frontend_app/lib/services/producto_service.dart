@@ -25,7 +25,7 @@ class ProductoService {
         'Authorization': 'Bearer $token',
         'ngrok-skip-browser-warning': 'true',
       },
-    );
+    ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final List<dynamic> jsonList = jsonDecode(response.body);
@@ -45,7 +45,7 @@ class ProductoService {
         'ngrok-skip-browser-warning': 'true',
       },
       body: jsonEncode(p.toJson()),
-    );
+    ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 201) {
       return Producto.fromJson(jsonDecode(response.body));
@@ -64,7 +64,7 @@ class ProductoService {
         'ngrok-skip-browser-warning': 'true',
       },
       body: jsonEncode(p.toJson()),
-    );
+    ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
       throw Exception('Error al editar producto');
@@ -83,7 +83,7 @@ class ProductoService {
         'ngrok-skip-browser-warning': 'true',
       },
       body: jsonEncode({'cantidad': cantidad, 'motivo': motivo}),
-    );
+    ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
       try {
@@ -103,7 +103,7 @@ class ProductoService {
         'Authorization': 'Bearer $token',
         'ngrok-skip-browser-warning': 'true',
       },
-    );
+    ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
       String msg = 'No se pudo completar la operación';

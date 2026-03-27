@@ -4,7 +4,10 @@ import com.inventario.tws2.repository.HistorialRepository;
 import com.inventario.tws2.repository.UsuarioRepository;
 import com.inventario.tws2.model.Historial;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
@@ -36,9 +39,32 @@ public class HistorialController {
             var historiales = historialRepository.findAllByOrderByCreatedAtDesc();
             var usuarios = usuarioRepository.findAll();
             var userMap = usuarios.stream().collect(Collectors.toMap(u -> u.getId(), u -> u.getNombre()));
-            historiales.forEach(h -> h.setUsuarioNombre(userMap.getOrDefault(h.getUsuarioId(), "Desconocido")));
+            historiales.forEach(h -> {
+                String nombre = userMap.get(h.getUsuarioId());
+                // Fallback solo si el ID no existe en la tabla de usuarios
+                if (nombre == null) {
+                    nombre = "Desconocido (ID: " + h.getUsuarioId() + ")";
+                }
+                h.setUsuarioNombre(nombre);
+            });
             return historiales;
         }).subscribeOn(Schedulers.boundedElastic())
         .flatMapMany(Flux::fromIterable);
+    }
+
+    @DeleteMapping("/historial/{id}")
+    public Mono<ResponseEntity<Void>> eliminarEntrada(@PathVariable Long id) {
+        return Mono.fromRunnable(() -> {
+            if (id != null) historialRepository.deleteById(id);
+        })
+                .subscribeOn(Schedulers.boundedElastic())
+                .then(Mono.just(ResponseEntity.ok().build()));
+    }
+
+    @DeleteMapping("/historial/limpiar")
+    public Mono<ResponseEntity<Void>> limpiarTodo() {
+        return Mono.fromRunnable(() -> historialRepository.deleteAll())
+                .subscribeOn(Schedulers.boundedElastic())
+                .then(Mono.just(ResponseEntity.ok().build()));
     }
 }

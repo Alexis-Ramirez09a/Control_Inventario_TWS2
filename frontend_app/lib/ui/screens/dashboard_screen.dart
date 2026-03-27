@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../models/producto.dart';
+import '../../models/categoria.dart';
+import '../../services/categoria_service.dart';
 import 'dart:async';
 import '../../models/historial.dart';
 import '../../providers/auth_provider.dart';
@@ -24,7 +26,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _indiceActual = 0;
   String _filtroHistorial = 'TODOS';
   String _filtroProducto = 'TODOS'; // Filtro: TODOS, INVENTARIADO, NO_INVENTARIADO
+  String _busqueda = ""; // Término de búsqueda por nombre
+  DateTime? _fechaInicio; // Filtro de bitácora
+  DateTime? _fechaFin;    // Filtro de bitácora
   Timer? _facturasPoller;
+  List<Categoria> _categorias = [];
 
   @override
   void dispose() {
@@ -39,8 +45,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final token = context.read<AuthProvider>().token;
       if (token != null) {
         context.read<ProductoProvider>().loadProductos(token);
+        _cargarCategorias();
       }
     });
+  }
+
+  Future<void> _cargarCategorias() async {
+    final token = context.read<AuthProvider>().token;
+    if (token == null) return;
+    try {
+      final cats = await CategoriaService.getCategorias(token);
+      setState(() => _categorias = cats);
+    } catch (e) {
+      debugPrint("Error cargando categorías: $e");
+    }
   }
 
   // === HELPERS DE TEMA ===
@@ -78,6 +96,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<HistorialProvider>().loadHistorial(token);
     } else if (index == 3) {
       context.read<ProductoProvider>().loadProductosBorrados(token);
+    } else if (index == 5) {
+      _cargarCategorias();
     }
     Navigator.pop(context);
   }
@@ -170,51 +190,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text('Regresar', style: TextStyle(color: _subTextColor, fontWeight: FontWeight.bold)),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: esEntrada ? _accentColor : Colors.deepOrangeAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        elevation: 0,
-                      ),
-                      onPressed: (vacio || excedido) ? null : () async {
-                        final cantidad = int.tryParse(objController.text) ?? 0;
-                        final token = context.read<AuthProvider>().token!;
-                        String? errorMsg;
-                        if (esEntrada) {
-                          errorMsg = await context.read<ProductoProvider>().darEntradaStock(token, p.id, cantidad, motivoController.text);
-                        } else {
-                          errorMsg = await context.read<ProductoProvider>().darSalidaStock(token, p.id, cantidad, motivoController.text);
-                        }
-                        if (mounted) {
-                          Navigator.pop(ctx);
-                          if (errorMsg == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(LucideIcons.checkCircle2, color: Colors.white),
-                                    const SizedBox(width: 10),
-                                    Text('Stock actualizado: ${p.nombre}'),
-                                  ],
-                                ),
-                                backgroundColor: Colors.green.shade600,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              )
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating));
-                          }
-                          context.read<HistorialProvider>().loadHistorial(token);
-                        }
-                      },
-                      child: Text(esEntrada ? 'Ingresar' : 'Retirar', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(color: _subTextColor.withOpacity(0.3)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text('Regresar', style: TextStyle(color: _subTextColor)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: esEntrada ? _accentColor : Colors.deepOrangeAccent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 4,
+                              shadowColor: (esEntrada ? _accentColor : Colors.deepOrangeAccent).withOpacity(0.4),
+                            ),
+                            onPressed: (vacio || excedido) ? null : () async {
+                              final cantidad = int.tryParse(objController.text) ?? 0;
+                              final token = context.read<AuthProvider>().token!;
+                              String? errorMsg;
+                              if (esEntrada) {
+                                errorMsg = await context.read<ProductoProvider>().darEntradaStock(token, p.id, cantidad, motivoController.text);
+                              } else {
+                                errorMsg = await context.read<ProductoProvider>().darSalidaStock(token, p.id, cantidad, motivoController.text);
+                              }
+                              if (mounted) {
+                                Navigator.pop(ctx);
+                                if (errorMsg == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(LucideIcons.checkCircle2, color: Colors.white),
+                                          const SizedBox(width: 10),
+                                          Text('Stock actualizado: ${p.nombre}'),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.green.shade600,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    )
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating));
+                                }
+                                context.read<HistorialProvider>().loadHistorial(token);
+                              }
+                            },
+                            child: Text(esEntrada ? 'Ingresar' : 'Retirar', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
                     )
                   ],
                 );
@@ -233,6 +268,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pCompraController = TextEditingController(text: p?.precioUnitarioCompra.toString() ?? '');
     final stockController = TextEditingController(text: p?.cantidadEnStock.toString() ?? '0');
     bool esInventariado = p?.inventariado ?? true;
+    Categoria? categoriaSeleccionada;
+    
+    // Buscar la categoría actual en la lista cargada
+    if (p?.categoria != null) {
+      try {
+        categoriaSeleccionada = _categorias.firstWhere((c) => c.id == p!.categoria!.id);
+      } catch (_) {}
+    }
 
     showGeneralDialog(
       context: context,
@@ -287,6 +330,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]')),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Selector de Categoría con botón "+"
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<Categoria>(
+                          value: categoriaSeleccionada,
+                          dropdownColor: _dialogBg,
+                          decoration: InputDecoration(
+                            labelText: 'Categoría',
+                            labelStyle: TextStyle(color: _subTextColor),
+                            prefixIcon: Icon(LucideIcons.layers, color: _accentColor),
+                            filled: true,
+                            fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                          ),
+                          items: _categorias.map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c.nombre, style: TextStyle(color: _textColor, fontSize: 13)),
+                          )).toList(),
+                          onChanged: (val) => setState(() => categoriaSeleccionada = val),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Botón para nueva categoría rápida
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _accentColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          icon: Icon(LucideIcons.plus, color: _accentColor),
+                          onPressed: () => _mostrarFormularioCategoria(parentSetState: setState),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -370,50 +450,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancelar', style: TextStyle(color: _subTextColor))),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accentColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 4,
-                  shadowColor: _accentColor.withOpacity(0.4),
-                ),
-                onPressed: formInvalido ? null : () async {
-                  final token = context.read<AuthProvider>().token!;
-                  final nuevo = Producto(
-                    id: p?.id ?? 0,
-                    nombre: nombreController.text,
-                    descripcion: descController.text,
-                    precioUnitarioVenta: double.tryParse(pVentaController.text) ?? 0,
-                    precioUnitarioCompra: double.tryParse(pCompraController.text) ?? 0,
-                    cantidadEnStock: p?.cantidadEnStock ?? (int.tryParse(stockController.text) ?? 0),
-                    inventariado: esInventariado,
-                  );
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: _subTextColor.withOpacity(0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text('Cancelar', style: TextStyle(color: _subTextColor)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accentColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 4,
+                        shadowColor: _accentColor.withOpacity(0.4),
+                      ),
+                      onPressed: formInvalido ? null : () async {
+                        final token = context.read<AuthProvider>().token!;
+                        final nuevo = Producto(
+                          id: p?.id ?? 0,
+                          nombre: nombreController.text,
+                          descripcion: descController.text,
+                          precioUnitarioVenta: double.tryParse(pVentaController.text) ?? 0,
+                          precioUnitarioCompra: double.tryParse(pCompraController.text) ?? 0,
+                          cantidadEnStock: p?.cantidadEnStock ?? (int.tryParse(stockController.text) ?? 0),
+                          inventariado: esInventariado,
+                          categoria: categoriaSeleccionada,
+                        );
 
-                  bool success;
-                  if (p == null) {
-                    success = await context.read<ProductoProvider>().addProducto(token, nuevo);
-                  } else {
-                    success = await context.read<ProductoProvider>().editProducto(token, p.id, nuevo);
-                  }
+                        bool success;
+                        if (p == null) {
+                          success = await context.read<ProductoProvider>().addProducto(token, nuevo);
+                        } else {
+                          success = await context.read<ProductoProvider>().editProducto(token, p.id, nuevo);
+                        }
 
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(success ? 'Información guardada correctamente' : 'Error en el servidor al procesar'),
-                        backgroundColor: success ? Colors.green : Colors.redAccent,
-                        behavior: SnackBarBehavior.floating,
-                      )
-                    );
-                    context.read<HistorialProvider>().loadHistorial(token);
-                  }
-                },
-                child: const Text('Guardar Producto', style: TextStyle(fontWeight: FontWeight.bold)),
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(success ? 'Información guardada correctamente' : 'Error en el servidor al procesar'),
+                              backgroundColor: success ? Colors.green : Colors.redAccent,
+                              behavior: SnackBarBehavior.floating,
+                            )
+                          );
+                          context.read<HistorialProvider>().loadHistorial(token);
+                        }
+                      },
+                      child: const Text('Guardar', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               )
             ],
           );
@@ -550,6 +647,145 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _mostrarFormularioCategoria({Categoria? cat, StateSetter? parentSetState}) {
+    final nameController = TextEditingController(text: cat?.nombre ?? '');
+    final stockMinController = TextEditingController(text: cat?.stockMinimo.toString() ?? '5');
+    final isEditing = cat != null;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Icon(isEditing ? LucideIcons.edit : LucideIcons.plusCircle, color: _accentColor, size: 24),
+            const SizedBox(width: 12),
+            Text(isEditing ? 'Editar Categoría' : 'Nueva Categoría', style: TextStyle(color: _textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: !isEditing,
+              style: TextStyle(color: _textColor),
+              decoration: InputDecoration(
+                labelText: 'Nombre de la categoría',
+                labelStyle: TextStyle(color: _subTextColor),
+                filled: true,
+                fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: stockMinController,
+              keyboardType: TextInputType.number,
+              style: TextStyle(color: _textColor),
+              decoration: InputDecoration(
+                labelText: 'Stock Mínimo Alerta',
+                labelStyle: TextStyle(color: _subTextColor),
+                prefixIcon: Icon(LucideIcons.alertTriangle, color: Colors.orangeAccent, size: 18),
+                filled: true,
+                fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              ),
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            ),
+          ],
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: _subTextColor.withOpacity(0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancelar', style: TextStyle(color: _subTextColor)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accentColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 4,
+                  ),
+                  onPressed: () async {
+                    if (nameController.text.trim().isEmpty) return;
+                    final data = Categoria(
+                      id: cat?.id,
+                      nombre: nameController.text.trim(),
+                      stockMinimo: int.tryParse(stockMinController.text) ?? 5,
+                    );
+                    try {
+                      final token = context.read<AuthProvider>().token!;
+                      if (isEditing) {
+                        await CategoriaService.updateCategoria(cat.id!, data, token);
+                      } else {
+                        await CategoriaService.createCategoria(data, token);
+                      }
+                      await _cargarCategorias(); // Refrescar lista global
+                      if (parentSetState != null) parentSetState(() {}); // Refrescar diálogo de producto si es necesario
+                      if (mounted) Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEditing ? 'Categoría actualizada' : 'Categoría creada')));
+                      
+                      // IMPORTANTE: Recargar productos para reflejar el nuevo stock mínimo en las alertas
+                      context.read<ProductoProvider>().loadProductos(token);
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
+                    }
+                  },
+                  child: Text(isEditing ? 'Guardar' : 'Crear', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          )
+        ],
+      )
+    );
+  }
+
+  void _eliminarCategoria(Categoria cat) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _dialogBg,
+        title: const Text('Eliminar Categoría'),
+        content: Text('¿Deseas eliminar "${cat.nombre}"?\nNota: Los productos asociados volverán al umbral por defecto (5).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancelar', style: TextStyle(color: _subTextColor))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          )
+        ],
+      )
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    try {
+      final token = context.read<AuthProvider>().token!;
+      await CategoriaService.deleteCategoria(cat.id!, token);
+      await _cargarCategorias();
+      context.read<ProductoProvider>().loadProductos(token);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoría eliminada')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
+    }
+  }
+
   void _mostrarStockCritico(List<Producto> criticos) {
     showGeneralDialog(
       context: context,
@@ -631,7 +867,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(p.nombre, style: TextStyle(color: _textColor, fontWeight: FontWeight.w600, fontSize: 13)),
-                                          Text('Disponible: ${p.cantidadEnStock}', style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                                          Text('Disponible: ${p.cantidadEnStock} / Umbral: ${p.categoria?.stockMinimo ?? 5}', 
+                                            style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -687,7 +925,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final totalCat = productos.length;
     final totalUnidades = productos.fold<int>(0, (sum, p) => sum + p.cantidadEnStock);
     final valorGlobal = productos.fold<double>(0.0, (sum, p) => sum + (p.cantidadEnStock * p.precioUnitarioVenta));
-    final criticos = productos.where((p) => p.cantidadEnStock <= 3).toList();
+    final criticos = productos.where((p) => p.cantidadEnStock < (p.categoria?.stockMinimo ?? 5)).toList();
     return LayoutBuilder(
       builder: (context, constraints) {
         final ancho = constraints.maxWidth;
@@ -825,33 +1063,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // APLICAR FILTRO
     final listaFiltrada = productos.where((p) {
-      if (_filtroProducto == 'TODOS') return true;
-      if (_filtroProducto == 'INVENTARIADO') return p.inventariado;
-      if (_filtroProducto == 'NO_INVENTARIADO') return !p.inventariado;
-      return true;
+      final cumpleFiltro = _filtroProducto == 'TODOS' ||
+          (_filtroProducto == 'INVENTARIADO' && p.inventariado) ||
+          (_filtroProducto == 'NO_INVENTARIADO' && !p.inventariado);
+      final cumpleBusqueda = p.nombre.toLowerCase().contains(_busqueda.toLowerCase());
+      return cumpleFiltro && cumpleBusqueda;
     }).toList();
 
     return Column(
       children: [
-        // Barra de Filtros
-        Container(
-          height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.02) : Colors.grey.shade50,
-            border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade200))
+        // BUSCADOR (Standalone)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: TextField(
+            onChanged: (v) => setState(() => _busqueda = v),
+            style: TextStyle(color: textColor, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Buscar producto...',
+              hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)),
+              prefixIcon: Icon(LucideIcons.search, size: 18, color: accentColor),
+              filled: true,
+              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: accentColor.withOpacity(0.5), width: 1)),
+            ),
           ),
+        ),
+        // FILTROS (Independientes)
+        SizedBox(
+          height: 48,
           child: ListView(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
-              _buildFilterChipProd('TODOS', 'Todos los productos', LucideIcons.layers),
+              _buildFilterChipProd('TODOS', 'Todos', LucideIcons.layers),
               const SizedBox(width: 8),
               _buildFilterChipProd('INVENTARIADO', 'Inventariables', LucideIcons.shieldCheck),
               const SizedBox(width: 8),
-              _buildFilterChipProd('NO_INVENTARIADO', 'Servicios / No Inv.', LucideIcons.shieldOff),
+              _buildFilterChipProd('NO_INVENTARIADO', 'Servicios', LucideIcons.shieldOff),
             ],
           ),
         ),
+        const SizedBox(height: 4),
+        Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey.shade200),
         Expanded(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
@@ -875,9 +1131,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   key: ValueKey('grid_$_filtroProducto'),
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
-                    int crossAxisCount = width > 1200 ? 4 : (width > 800 ? 3 : (width > 500 ? 2 : 1));
-                    double childAspectRatio = width > 1200 ? 1.5 : (width > 800 ? 1.4 : (width > 500 ? 1.8 : 1.6));
-                    if (width < 450) childAspectRatio = 1.45;
+                    int crossAxisCount = width > 1400 ? 5 : (width > 1100 ? 4 : (width > 800 ? 3 : 2));
+                    // Equilibrando ancho y alto para evitar que se vean muy estiradas (Slim/Compact)
+                    double childAspectRatio = width > 1100 ? 1.5 : (width > 800 ? 1.4 : (width > 500 ? 1.3 : 0.88));
+                    if (width < 380) childAspectRatio = 0.82; 
 
                     return GridView.builder(
                       physics: const BouncingScrollPhysics(),
@@ -939,26 +1196,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isDark = context.watch<ThemeProvider>().isDark;
     final isSelected = _filtroProducto == valor;
     final accentColor = isDark ? AppTheme.sageLight : AppTheme.sageDark;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: FilterChip(
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: isSelected ? Colors.white : (isDark ? Colors.white54 : Colors.grey)),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF4A6070)), fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-          ],
-        ),
-        selected: isSelected,
-        selectedColor: accentColor,
-        showCheckmark: false,
-        backgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-        side: BorderSide(color: isSelected ? accentColor : (isDark ? Colors.white10 : Colors.grey.shade300)),
-        onSelected: (val) {
-          if (val) setState(() => _filtroProducto = valor);
-        },
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: isSelected ? Colors.white : (isDark ? Colors.white54 : Colors.grey)),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF4A6070)), fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+        ],
       ),
+      selected: isSelected,
+      selectedColor: accentColor,
+      showCheckmark: false,
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      backgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+      side: BorderSide(color: isSelected ? accentColor : (isDark ? Colors.white10 : Colors.grey.shade300)),
+      onSelected: (val) {
+        if (val) setState(() => _filtroProducto = valor);
+      },
     );
   }
 
@@ -979,6 +1235,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHistorialList() {
+    final auth = context.watch<AuthProvider>();
+    final isAdmin = auth.usuario?.rol == 'ADMIN';
     final isDark = context.watch<ThemeProvider>().isDark;
     final textColor = isDark ? Colors.white : const Color(0xFF1A2730);
     final subTextColor = isDark ? Colors.white70 : const Color(0xFF5A7080);
@@ -1005,9 +1263,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    final listaFiltrada = _filtroHistorial == 'TODOS'
-        ? registros
-        : registros.where((r) => r.accion == _filtroHistorial).toList();
+    final listaFiltrada = registros.where((r) {
+      final cumpleAccion = _filtroHistorial == 'TODOS' || r.accion == _filtroHistorial;
+      bool cumpleFecha = true;
+      if (_fechaInicio != null && _fechaFin != null) {
+        // Normalizar fechas para comparar solo días (opcional) o usar timestamp completo
+        // Aquí comparamos si está en el rango [inicio, fin] inclusive
+        final d = r.createdAt;
+        final start = DateTime(_fechaInicio!.year, _fechaInicio!.month, _fechaInicio!.day);
+        final end = DateTime(_fechaFin!.year, _fechaFin!.month, _fechaFin!.day, 23, 59, 59);
+        cumpleFecha = d.isAfter(start) && d.isBefore(end);
+      }
+      return cumpleAccion && cumpleFecha;
+    }).toList();
 
     return Column(
       children: [
@@ -1020,6 +1288,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
+                // Selector de Fecha
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDateRangePicker(
+                      context: context,
+                      initialDateRange: (_fechaInicio != null && _fechaFin != null) 
+                          ? DateTimeRange(start: _fechaInicio!, end: _fechaFin!)
+                          : null,
+                      firstDate: DateTime(2023),
+                      lastDate: DateTime.now().add(const Duration(days: 1)),
+                      builder: (context, child) => Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: isDark ? ColorScheme.dark(primary: accentColor, onPrimary: Colors.white, surface: const Color(0xFF1E293B)) : ColorScheme.light(primary: accentColor),
+                        ),
+                        child: child!,
+                      ),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _fechaInicio = picked.start;
+                        _fechaFin = picked.end;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: (_fechaInicio != null) ? accentColor.withOpacity(0.15) : (isDark ? Colors.white.withOpacity(0.05) : Colors.white),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: (_fechaInicio != null) ? accentColor : (isDark ? Colors.white10 : Colors.grey.shade300)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.calendar, size: 16, color: (_fechaInicio != null) ? accentColor : subTextColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          (_fechaInicio != null) 
+                              ? '${_fechaInicio!.day}/${_fechaInicio!.month} - ${_fechaFin!.day}/${_fechaFin!.month}'
+                              : 'Filtrar Fecha',
+                          style: TextStyle(color: (_fechaInicio != null) ? accentColor : subTextColor, fontSize: 12, fontWeight: (_fechaInicio != null) ? FontWeight.bold : FontWeight.normal),
+                        ),
+                        if (_fechaInicio != null) ...[
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () => setState(() { _fechaInicio = null; _fechaFin = null; }),
+                            child: Icon(LucideIcons.x, size: 14, color: accentColor),
+                          ),
+                        ]
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 _buildFilterChip('TODOS', 'Todos'),
                 const SizedBox(width: 8),
                 _buildFilterChip('CREACION', 'Creados'),
@@ -1033,6 +1355,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _buildFilterChip('ELIMINACION', 'Eliminados'),
                 const SizedBox(width: 8),
                 _buildFilterChip('RESTAURACION', 'Restaurados'),
+                const SizedBox(width: 16),
+                // Botón Limpiar Todo (Solo Admin)
+                if (isAdmin)
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent.withOpacity(0.1),
+                      foregroundColor: Colors.redAccent,
+                      elevation: 0,
+                      side: const BorderSide(color: Colors.redAccent),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    onPressed: () => _confirmarLimpiarHistorial(),
+                    icon: const Icon(LucideIcons.trash2, size: 14),
+                    label: const Text('Limpiar Todo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
               ],
             ),
           ),
@@ -1076,6 +1414,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Text('Por ${r.usuarioNombre} • $dateStr', style: TextStyle(color: subTextColor, fontSize: 13)),
                         ),
+                        trailing: isAdmin ? IconButton(
+                          icon: Icon(LucideIcons.trash2, color: Colors.redAccent.withOpacity(0.5), size: 18),
+                          onPressed: () => _confirmarEliminarEntrada(r),
+                        ) : null,
                       ),
                     );
                   },
@@ -1226,6 +1568,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ----------- VISTA 5: GESTIÓN DE CATEGORÍAS -----------
+  Widget _buildCategoriasList() {
+    final isDark = context.watch<ThemeProvider>().isDark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A2730);
+    final subTextColor = isDark ? Colors.white70 : const Color(0xFF5A7080);
+    final accentColor = isDark ? AppTheme.sageLight : AppTheme.sageDark;
+
+    if (_categorias.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(LucideIcons.layers, size: 80, color: accentColor.withOpacity(0.5)),
+            const SizedBox(height: 20),
+            Text('No hay categorías creadas.', style: TextStyle(color: subTextColor, fontSize: 18)),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () => _mostrarFormularioCategoria(),
+              child: const Text('Crear Primera Categoría'),
+            )
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      itemCount: _categorias.length,
+      itemBuilder: (ctx, i) {
+        final cat = _categorias[i];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: accentColor.withOpacity(0.1), shape: BoxShape.circle),
+              child: Icon(LucideIcons.layers, color: accentColor, size: 22),
+            ),
+            title: Text(cat.nombre, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+            subtitle: Text('Stock Mínimo Alerta: ${cat.stockMinimo}', style: TextStyle(color: subTextColor, fontSize: 14)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(LucideIcons.edit, color: subTextColor, size: 20),
+                  onPressed: () => _mostrarFormularioCategoria(cat: cat),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2, color: Colors.redAccent, size: 20),
+                  onPressed: () => _eliminarCategoria(cat),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // ----------- WIDGET PRINCIPAL -----------
   @override
   Widget build(BuildContext context) {
@@ -1265,10 +1676,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         title: Text(
-          _indiceActual == 0 ? 'Inventario TWS2'
+          _indiceActual == 0 ? 'Resumen TWS2'
           : _indiceActual == 1 ? 'Inventario Detallado'
           : _indiceActual == 2 ? 'Bitácora de Auditoría'
-          : _indiceActual == 3 ? 'Papelera de Reciclaje' : 'Facturas',
+          : _indiceActual == 3 ? 'Papelera de Reciclaje'
+          : _indiceActual == 4 ? 'Facturas' : 'Gestión de Categorías',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -1345,6 +1757,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               selectedTileColor: drawerSelectedBg,
               onTap: () => _seleccionarMenu(4),
             ),
+            ListTile(
+              leading: Icon(LucideIcons.layers, color: Colors.orangeAccent),
+              title: Text('Gestión de Categorías', style: TextStyle(color: drawerTextColor)),
+              selected: _indiceActual == 5,
+              selectedTileColor: drawerSelectedBg,
+              onTap: () => _seleccionarMenu(5),
+            ),
             if (isAdmin)
               ListTile(
                 leading: const Icon(LucideIcons.trash2, color: Colors.redAccent),
@@ -1372,13 +1791,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: const Text('Crear Producto', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             onPressed: () => _mostrarFormularioProducto(),
           )
-        : null,
-      body: _indiceActual == 4
-          ? _buildFacturasList()
-          : _indiceActual == 3
-              ? _buildPapeleraList()
-              : _indiceActual == 2
-                  ? _buildHistorialList()
+        : (_indiceActual == 5)
+            ? FloatingActionButton.extended(
+                backgroundColor: Colors.orangeAccent,
+                icon: const Icon(LucideIcons.plusCircle, color: Colors.white),
+                label: const Text('Nueva Categoría', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                onPressed: () => _mostrarFormularioCategoria(),
+              )
+            : null,
+      body: _indiceActual == 5
+          ? _buildCategoriasList()
+          : _indiceActual == 4
+              ? _buildFacturasList()
+              : _indiceActual == 3
+                  ? _buildPapeleraList()
+                  : _indiceActual == 2
+                      ? _buildHistorialList()
               : (isLoadingProd && productos.isEmpty)
                   ? Center(child: CircularProgressIndicator(color: accentColor))
                   : errorMsgProd != null
@@ -1412,6 +1840,100 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : _indiceActual == 0
                           ? _buildSummaryCards(productos)
                           : _buildProductosList(productos, isAdmin),
+    );
+  }
+
+  void _confirmarEliminarEntrada(HistorialLog r) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _dialogBg,
+        title: const Text('Eliminar Registro'),
+        content: Text('¿Deseas borrar permanentemente este registro de la bitácora?\n\n"${r.detalles}"'),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: _subTextColor.withOpacity(0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancelar', style: TextStyle(color: _subTextColor)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 4,
+                  ),
+                  onPressed: () {
+                    final token = context.read<AuthProvider>().token!;
+                    context.read<HistorialProvider>().deleteEntry(token, r.id);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registro eliminado')));
+                  },
+                  child: const Text('Eliminar', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          )
+        ],
+      )
+    );
+  }
+
+  void _confirmarLimpiarHistorial() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _dialogBg,
+        title: const Text('Limpiar Bitácora'),
+        content: const Text('¿Estás seguro de que deseas borrar TODOS los registros del historial? Esta acción no se puede deshacer.'),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: _subTextColor.withOpacity(0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancelar', style: TextStyle(color: _subTextColor)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 4,
+                  ),
+                  onPressed: () {
+                    final token = context.read<AuthProvider>().token!;
+                    context.read<HistorialProvider>().clearAll(token);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Historial limpiado correctamente')));
+                  },
+                  child: const Text('Limpiar Todo', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          )
+        ],
+      )
     );
   }
 }
@@ -1492,93 +2014,130 @@ class _ProductoItemCardState extends State<_ProductoItemCard> {
               onTap: widget.onEdit,
               borderRadius: BorderRadius.circular(24),
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(6.0),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
+                    // Cabecera: Nombre y Badge de Tipo
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: p.cantidadEnStock > 0
-                                  ? (isDark ? [Colors.cyan, Colors.blueAccent] : [AppTheme.sage, AppTheme.sageDark])
-                                  : [Colors.redAccent, Colors.orangeAccent],
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              p.cantidadEnStock.toString(), 
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)
-                            )
+                        Expanded(
+                          child: Text(
+                            p.nombre, 
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900, 
+                              color: textColor, 
+                              fontSize: 13,
+                              letterSpacing: -0.5
+                            ), 
+                            maxLines: 2, 
+                            overflow: TextOverflow.ellipsis
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                p.nombre, 
-                                style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 14), 
-                                maxLines: 1, 
-                                overflow: TextOverflow.ellipsis
-                              ),
-                              Row(
-                                children: [
-                                  Icon(LucideIcons.tag, size: 10, color: accentColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '\$${p.precioUnitarioVenta.toStringAsFixed(2)}', 
-                                    style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 11)
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildBadge(
-                                    p.inventariado ? "INV" : "SERV", 
-                                    p.inventariado ? accentColor : Colors.orangeAccent
-                                  ),
-                                ],
-                              ),
-                            ],
+                        const SizedBox(width: 8),
+                        if (p.categoria != null)
+                          _buildBadge(
+                            p.categoria!.nombre.toUpperCase(), 
+                            isDark ? Colors.cyanAccent : Colors.blueGrey
                           ),
+                        const SizedBox(width: 4),
+                        _buildBadge(
+                          p.inventariado ? "INV" : "SERV", 
+                          p.inventariado ? accentColor : Colors.orangeAccent
                         ),
                       ],
                     ),
-                    if (p.descripcion.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                    const SizedBox(height: 6),
+                    // Precio con estilo monetario destacado
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '\$${p.precioUnitarioVenta.toStringAsFixed(2)}', 
+                            style: TextStyle(
+                              color: accentColor, 
+                              fontWeight: FontWeight.w800, 
+                              fontSize: 12,
+                              fontFamily: 'Courier' 
+                            )
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (p.cantidadEnStock < (p.categoria?.stockMinimo ?? 5))
+                          Tooltip(
+                            message: 'Stock Crítico (Mín: ${p.categoria?.stockMinimo ?? 5})',
+                            child: Icon(
+                              LucideIcons.alertTriangle, 
+                              size: 14, 
+                              color: p.inventariado ? Colors.orangeAccent.withOpacity(0.8) : Colors.cyanAccent.withOpacity(0.8)
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Descripción minimalista
+                    if (p.descripcion.isNotEmpty)
                       Text(
                         p.descripcion, 
-                        style: TextStyle(color: subTextColor, height: 1.1, fontSize: 11), 
+                        style: TextStyle(color: subTextColor, height: 1.2, fontSize: 10, fontStyle: FontStyle.italic), 
                         maxLines: 2, 
                         overflow: TextOverflow.ellipsis
                       ),
-                    ],
                     const Spacer(),
-                    Divider(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05), height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildStatusChip(p.cantidadEnStock > 0 ? 'EN STOCK' : 'AGOTADO', p.cantidadEnStock > 0 ? Colors.green : Colors.red),
-                        Row(
-                          children: [
-                            if (widget.isAdmin)
-                              _buildActionBtn(LucideIcons.edit3, iconEditColor, widget.onEdit),
-                            const SizedBox(width: 6),
-                            _buildActionBtn(LucideIcons.minusCircle, Colors.deepOrangeAccent, widget.onRemoveStock),
-                            const SizedBox(width: 6),
-                            _buildActionBtn(LucideIcons.plusCircle, accentColor, widget.onAddStock),
-                            if (widget.isAdmin) ...[
+                    // Barra de Acciones con soporte para Wrap en pantallas pequeñas
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Stock Circle Integrado (Lado Izquierdo)
+                          Container(
+                            width: 32, height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (p.cantidadEnStock > 0 ? Colors.green : Colors.red).withOpacity(0.2),
+                                  blurRadius: 8,
+                                )
+                              ],
+                              gradient: LinearGradient(
+                                colors: p.cantidadEnStock > 0 
+                                  ? [Colors.green.shade400, Colors.green.shade700] 
+                                  : [Colors.red.shade400, Colors.red.shade700]
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                p.cantidadEnStock.toString(),
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)
+                              ),
+                            ),
+                          ),
+                          // Acciones ergonómicas simplificadas (Lado Derecho)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildActionBtn(LucideIcons.minusSquare, Colors.deepOrangeAccent, widget.onRemoveStock),
                               const SizedBox(width: 6),
-                              _buildActionBtn(LucideIcons.trash2, Colors.redAccent, widget.onDelete),
+                              _buildActionBtn(LucideIcons.plusSquare, Colors.greenAccent, widget.onAddStock),
+                              if (widget.isAdmin) ...[
+                                const SizedBox(width: 6),
+                                _buildActionBtn(LucideIcons.moreHorizontal, subTextColor, () {
+                                  _showQuickMenu(context, p);
+                                }),
+                              ],
                             ],
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1618,15 +2177,111 @@ class _ProductoItemCardState extends State<_ProductoItemCard> {
     );
   }
 
+  void _showQuickMenu(BuildContext context, Producto p) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => Center(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B).withOpacity(0.95) : Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              )
+            ],
+            border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   Container(
+                    width: 50, height: 50,
+                    decoration: BoxDecoration(
+                      color: (isDark ? AppTheme.sageLight : AppTheme.sageDark).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(LucideIcons.settings2, color: isDark ? AppTheme.sageLight : AppTheme.sageDark, size: 24),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    p.nombre, 
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: isDark ? Colors.white : Colors.black87)
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Gestión de Producto', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 24),
+                  _buildMenuOption(
+                    ctx, 
+                    Icon(LucideIcons.edit3, color: Colors.blueAccent), 
+                    'Editar Información',
+                    () { Navigator.pop(ctx); widget.onEdit(); }
+                  ),
+                  const SizedBox(height: 12),
+                  _buildMenuOption(
+                    ctx, 
+                    Icon(LucideIcons.trash2, color: Colors.redAccent), 
+                    'Eliminar de Inventario',
+                    () { Navigator.pop(ctx); widget.onDelete(); }
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text('Cerrar', style: TextStyle(color: isDark ? Colors.white38 : Colors.grey, fontWeight: FontWeight.bold)),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuOption(BuildContext context, Widget icon, String title, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+        ),
+        child: Row(
+          children: [
+            icon,
+            const SizedBox(width: 16),
+            Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+            const Icon(LucideIcons.chevronRight, size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionBtn(IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.2), width: 0.5)
         ),
         child: Icon(icon, color: color, size: 16),
       ),

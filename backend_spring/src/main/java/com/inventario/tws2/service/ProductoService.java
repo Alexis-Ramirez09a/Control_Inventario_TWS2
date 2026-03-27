@@ -4,6 +4,7 @@ import com.inventario.tws2.dto.StockMovimientoRequest;
 import com.inventario.tws2.model.Historial;
 import com.inventario.tws2.model.MovimientoInventario;
 import com.inventario.tws2.model.Producto;
+import com.inventario.tws2.repository.CategoriaRepository;
 import com.inventario.tws2.repository.HistorialRepository;
 import com.inventario.tws2.repository.MovimientoInventarioRepository;
 import com.inventario.tws2.repository.ProductoRepository;
@@ -32,14 +33,19 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final HistorialRepository historialRepository;
     private final MovimientoInventarioRepository movimientoInventarioRepository;
+    private final CategoriaRepository categoriaRepository;
 
     @Transactional
     public Producto crearProducto(Producto producto, Long usuarioId) {
-        // Asegurar que inventariado tenga un valor (por defecto true si viene null)
+        if (producto.getCategoria() != null && producto.getCategoria().getId() != null) {
+            categoriaRepository.findById(producto.getCategoria().getId())
+                    .ifPresent(producto::setCategoria);
+        }
         Producto nuevo = productoRepository.save(producto);
+        
         Historial h = new Historial();
         h.setAccion("CREACION");
-        h.setDetalles("Producto registrado (" + (nuevo.isInventariado() ? "Inventariado" : "No Inventariado") + "): " + nuevo.getNombre());
+        h.setDetalles("Producto registrado (" + nuevo.getNombre() + ") con stock inicial de " + nuevo.getCantidadEnStock() + " unidades [" + (nuevo.isInventariado() ? "Inventariable" : "Servicio") + "]");
         h.setUsuarioId(usuarioId);
         historialRepository.save(h);
         return nuevo;
@@ -57,6 +63,14 @@ public class ProductoService {
         p.setPrecioUnitarioVenta(data.getPrecioUnitarioVenta());
         p.setPrecioUnitarioCompra(data.getPrecioUnitarioCompra());
         p.setInventariado(data.isInventariado());
+        
+        // Buscar y asignar la categoría desde el repositorio para asegurar persistencia correcta
+        if (data.getCategoria() != null && data.getCategoria().getId() != null) {
+            categoriaRepository.findById(data.getCategoria().getId())
+                    .ifPresent(p::setCategoria);
+        } else {
+            p.setCategoria(null);
+        }
         if(data.getCantidadEnStock() != null) p.setCantidadEnStock(data.getCantidadEnStock());
         
         Producto actualizado = productoRepository.save(p);

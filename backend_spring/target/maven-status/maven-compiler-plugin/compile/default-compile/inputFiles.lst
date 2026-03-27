@@ -2,7 +2,10 @@ C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\invent
 C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\controller\InventarioFacturasController.java
 C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\InventarioApplication.java
 C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\service\FacturaIntegrationService.java
+C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\model\Categoria.java
+C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\repository\CategoriaRepository.java
 C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\controller\GlobalExceptionHandler.java
+C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\controller\CategoriaController.java
 C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\dto\AuthResponse.java
 C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\config\DataSeeder.java
 C:\Users\ASUS\Desktop\Control_Inventario\backend_spring\src\main\java\com\inventario\tws2\model\Usuario.java

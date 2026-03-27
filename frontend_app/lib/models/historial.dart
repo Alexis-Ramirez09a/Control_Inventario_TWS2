@@ -12,7 +12,7 @@ class HistorialLog {
       id: json['id'],
       accion: json['accion'],
       detalles: json['detalles'],
-      usuarioNombre: json['Usuario']?['nombre'] ?? 'Desconocido',
+      usuarioNombre: json['usuarioNombre'] ?? 'Desconocido',
       createdAt: DateTime.parse(json['createdAt']).toLocal(),
     );
   }

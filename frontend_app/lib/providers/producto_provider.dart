@@ -18,12 +18,24 @@ class ProductoProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final service = ProductoService(token);
-      _productos = await service.getProductos();
-    } catch (e) {
-      _error = "Advertencia API Web de Ngrok: Por favor, abre una nueva pestaña en Edge con tu URL de Ngrok y dale a 'Visit Site' para habilitar el servicio. Luego toca REINTENTAR.";
-      debugPrint('Error al cargar productos: $e');
+    int retryCount = 0;
+    const maxRetries = 3;
+    bool success = false;
+
+    while (retryCount < maxRetries && !success) {
+      try {
+        final service = ProductoService(token);
+        _productos = await service.getProductos();
+        success = true;
+      } catch (e) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          _error = "Error de conexión (Ngrok): Verifica que el servidor esté activo e intenta de nuevo.";
+          debugPrint('Error final tras $retryCount reintentos: $e');
+        } else {
+          await Future.delayed(Duration(milliseconds: 500 * retryCount));
+        }
+      }
     }
 
     _isLoading = false;

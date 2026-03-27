@@ -26,4 +26,28 @@ class HistorialProvider with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
+  Future<void> deleteEntry(String token, int id) async {
+    try {
+      final service = HistorialService(token);
+      await service.eliminarHistorial(id);
+      _registros.removeWhere((h) => h.id == id);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> clearAll(String token) async {
+    try {
+      final service = HistorialService(token);
+      await service.limpiarHistorial();
+      _registros = [];
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
 }

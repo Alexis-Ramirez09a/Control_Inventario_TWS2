@@ -56,6 +56,10 @@ public class Producto {
     @Column(nullable = false)
     private boolean inventariado = true;
 
+    @ManyToOne
+    @JoinColumn(name = "categoria_id")
+    private Categoria categoria;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
